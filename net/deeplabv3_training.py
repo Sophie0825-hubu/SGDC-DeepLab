@@ -27,29 +27,25 @@ def Focal_Loss(inputs, target, cls_weights, num_classes=8, gamma=2):
     temp_inputs = inputs.transpose(1, 2).transpose(2, 3).contiguous().view(-1, c)
     temp_target = target.view(-1)
 
-    # 计算每个类别的预测概率
     logpt = -nn.CrossEntropyLoss(weight=cls_weights, ignore_index=num_classes, reduction='none')(temp_inputs, temp_target)
     pt = torch.exp(logpt)
     
-    # 动态计算alpha权重
     with torch.no_grad():
-        # 计算每个类别的平均预测概率
         unique_classes = torch.unique(temp_target)
         class_probs = {}
         for cls in unique_classes:
-            if cls == num_classes:  # 忽略背景类
+            if cls == num_classes:
                 continue
             mask = (temp_target == cls)
             if mask.sum() > 0:
-                class_probs[cls.item()] = pt[mask].mean().item()  # 核心1: 计算类别平均预测概率
+                class_probs[cls.item()] = pt[mask].mean().item()
         
-        # 计算自适应alpha
-        min_prob = min(class_probs.values()) if class_probs else 1.0  # 核心2: 找到最难类的概率
+
+        min_prob = min(class_probs.values()) if class_probs else 1.0
         alpha = {}
         for cls, prob in class_probs.items():
-            alpha[cls] = min_prob / (prob + 1e-6)  # 防止除以0 核心3: 以最难类为基准进行缩放
+            alpha[cls] = min_prob / (prob + 1e-6)
     
-    # 应用自适应alpha权重
     alpha_tensor = torch.ones_like(temp_target, dtype=torch.float32)
     for cls, a in alpha.items():
         alpha_tensor[temp_target == cls] = a
@@ -68,9 +64,7 @@ def Dice_loss(inputs, target, beta=1, smooth = 1e-5):
     temp_inputs = torch.softmax(inputs.transpose(1, 2).transpose(2, 3).contiguous().view(n, -1, c),-1)
     temp_target = target.view(n, -1, ct)
 
-    #--------------------------------------------#
-    #   计算dice loss
-    #--------------------------------------------#
+
     tp = torch.sum(temp_target[...,:-1] * temp_inputs, axis=[0,1])
     fp = torch.sum(temp_inputs                       , axis=[0,1]) - tp
     fn = torch.sum(temp_target[...,:-1]              , axis=[0,1]) - tp
@@ -102,7 +96,6 @@ def weights_init(net, init_type='normal', init_gain=0.02):
 def get_lr_scheduler(lr_decay_type, lr, min_lr, total_iters, warmup_iters_ratio = 0.1, warmup_lr_ratio = 0.1, no_aug_iter_ratio = 0.3, step_num = 10):
     def yolox_warm_cos_lr(lr, min_lr, total_iters, warmup_total_iters, warmup_lr_start, no_aug_iter, iters):
         if iters <= warmup_total_iters:
-            # lr = (lr - warmup_lr_start) * iters / float(warmup_total_iters) + warmup_lr_start
             lr = (lr - warmup_lr_start) * pow(iters / float(warmup_total_iters), 2) + warmup_lr_start
         elif iters >= total_iters - no_aug_iter:
             lr = min_lr

@@ -32,35 +32,24 @@ class InvertedResidual(nn.Module):
 
         if expand_ratio == 1:
             self.conv = nn.Sequential(
-                #--------------------------------------------#
-                #   进行3x3的逐层卷积，进行跨特征点的特征提取
-                #--------------------------------------------#
+
                 nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
                 BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
-                #-----------------------------------#
-                #   利用1x1卷积进行通道数的调整
-                #-----------------------------------#
+
+
                 nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
                 BatchNorm2d(oup),
             )
         else:
             self.conv = nn.Sequential(
-                #-----------------------------------#
-                #   利用1x1卷积进行通道数的上升
-                #-----------------------------------#
+
                 nn.Conv2d(inp, hidden_dim, 1, 1, 0, bias=False),
                 BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
-                #--------------------------------------------#
-                #   进行3x3的逐层卷积，进行跨特征点的特征提取
-                #--------------------------------------------#
                 nn.Conv2d(hidden_dim, hidden_dim, 3, stride, 1, groups=hidden_dim, bias=False),
                 BatchNorm2d(hidden_dim),
                 nn.ReLU6(inplace=True),
-                #-----------------------------------#
-                #   利用1x1卷积进行通道数的下降
-                #-----------------------------------#
                 nn.Conv2d(hidden_dim, oup, 1, 1, 0, bias=False),
                 BatchNorm2d(oup),
             )
@@ -78,20 +67,18 @@ class MobileNetV2(nn.Module):
         input_channel = 32
         last_channel = 1280
         interverted_residual_setting = [
-            # t, c, n, s
-            [1, 16, 1, 1], # 256, 256, 32 -> 256, 256, 16
-            [6, 24, 2, 2], # 256, 256, 16 -> 128, 128, 24   2
-            [6, 32, 3, 2], # 128, 128, 24 -> 64, 64, 32     4
-            [6, 64, 4, 2], # 64, 64, 32 -> 32, 32, 64       7
-            [6, 96, 3, 1], # 32, 32, 64 -> 32, 32, 96
-            [6, 160, 3, 2], # 32, 32, 96 -> 16, 16, 160     14
-            [6, 320, 1, 1], # 16, 16, 160 -> 16, 16, 320
+            [1, 16, 1, 1],
+            [6, 24, 2, 2],
+            [6, 32, 3, 2],
+            [6, 64, 4, 2],
+            [6, 96, 3, 1],
+            [6, 160, 3, 2],
+            [6, 320, 1, 1],
         ]
 
         assert input_size % 32 == 0
         input_channel = int(input_channel * width_mult)
         self.last_channel = int(last_channel * width_mult) if width_mult > 1.0 else last_channel
-        # 512, 512, 3 -> 256, 256, 32
         self.features = [conv_bn(3, input_channel, 2)]
 
         for t, c, n, s in interverted_residual_setting:
@@ -148,14 +135,9 @@ def load_url(url, model_dir='./model_data', map_location=None):
 def mobilenetv2(pretrained=False, **kwargs):
     model = MobileNetV2(n_class=1000, **kwargs)
     if pretrained:
-        try:  # 有gpu
+        try:  #
             model.load_state_dict(load_url('https://github.com/bubbliiiing/deeplabv3-plus-pytorch/releases/download/v1.0/mobilenet_v2.pth.tar', map_location=torch.device('cpu')), strict=False)
-        except RuntimeError as e:  # 无gpu
+        except RuntimeError as e:
             print(f"预训练权重加载失败: {e}")
             print("继续使用随机初始化的模型进行计算。")
     return model
-
-if __name__ == "__main__":
-    model = mobilenetv2()
-    for i, layer in enumerate(model.features):
-        print(i, layer)
