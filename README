@@ -1,0 +1,64 @@
+# DeepLabv3+: Encoder-Decoder with Atrous Separable Convolution
+
+[![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=for-the-badge&logo=PyTorch&logoColor=white)](https://pytorch.org/)
+
+#  project structure
+- **VOCdevkit\ VOC2007**  - Data set storage directory
+    - `ImageSets/` 
+    - `JPEGImages/` - image
+    - `SegmentationClass/` - Label
+
+- **logs**  -  Log
+  	- `model_data/` - Model weights
+    - `nets/` - Different models
+- **utils**
+- **calculate_flops.py** - Calculate the number of parameters and the amount of computation
+- **deeplab.py** 
+- **get_miou.py** - assessment criteria
+- **predict.py** - inference script
+- **train.py** - train script
+- **voc_annotation.py** 
+
+
+#  Data preparation
+### LoveDA 
+-  **链接**: https://pan.baidu.com/s/1mvJ-TgWgqPwgj0TiE_ufWg?pwd=yqdu
+-  **提取码**: `yqdu`
+
+### Fine-Grained Grass Segmentation
+
+- **链接**: <code>huggingface-cli download --repo-type dataset XavierJiezou/ktda-datasets --local-dir data --include grass.zip unzip grass.zip -d grass</code>
+- **提取码**: https://huggingface.co/datasets/XavierJiezou/ktda-datasets
+
+
+
+# ️ Training steps
+
+##### 1. 训练前，把使用的数据集分为train、val和test（如果有）。将标签文件放VOCdevkit文件夹下的VOC2007文件夹下的SegmentationClass  中；将图片文件放在VOCdevkit文件夹下的VOC2007文件夹下的JPEGImages中；在训练前利用voc_annotation.py文件生成对应的txt。
+#### 2. 在train.py文件夹下面，选择自己要使用的主干模型和下采样因子。本文提供的主干模型有mobilenet、resnet和vgg。下采样因子可以在8和16中选择。需要注意的是，预训练模型需要和主干模型相对应。  
+#### 3. 修改train.py的num_classes，需注意这里的num_classes应为分类个数+1。修改train.py的model_path、VOCdevkit_path与自己的路径对应。model_path的路径需具体到.pth, 如 '/root/autodl-tmp/Deeplabv3/model_data/deeplab_mobilenetv2.pth"; VOCdevkit_path的路径仅到VOCdevkit文件夹即可，如 '/root/autodl-tmp/Deeplabv3/VOCdevkit'
+#### 4. 运行train.py即可开始训练。
+
+# ️ Prediction steps
+##### 1. 修改deeplab.py文件中的 model_path、num_classes、backbone、self.colors。model_path指向logs文件夹下的权值文件，num_classes代表要预测的类的数量+1，backbone是所使用的主干特征提取网络，self.colors是颜色标签，与num_classes相匹配。
+##### 2. 修改predict****.py文件中的num_classes, num_classes代表要预测的类的数量+1。根据需求对测试模式mode进行选择，提供了单张预测、视频检测、测试fps、遍历文件夹进行检测并保存以及将模型导出为onnx（需pytorch1.7.1以上）。选择mode后，修改对应部分的数据集路径
+
+# ️ Assess steps
+##### 1. 设置get_miou.py里面的num_classes为预测的类的数量+1。  
+##### 2. 设置get_miou.py里面的name_classes为需要去区分的类别。  
+##### 3. 运行get_miou.py即可获得miou大小。
+
+
+
+
+# ️ Architecture optimization
+#### 1、 主要的优化位于nets\deeplabv3_plus.py中：
+   - **LFFM模块**（Lightweight Feature Fusion Module）：通过增加GhostModule以及GhostFusionModule类实现。LFFM模块使用Ghost卷积减少计算量，同时保持特征表达能力，有效降低模型参数量和计算复杂度。
+   - **SGDC模块**（Spatial Gaussian Dilated Convolution）：通过加入GaussianDilatedConv以及EnhancedASPP类实现。SGDC模块使用高斯加权的空洞卷积，增强了模型对多尺度特征的捕获能力，提高了分割精度，特别是对于边界区域。
+   - 在Deeplab类中可选择是否使用LFFM和SGDC，灵活配置模型结构以适应不同的应用场景和计算资源限制。
+#### 2、 对于损失函数以及调参在train.py中进行，train.py已写入详细的注释。
+
+
+### Reference
+https://github.com/bubbliiiing/deeplabv3-plus-pytorch
+
